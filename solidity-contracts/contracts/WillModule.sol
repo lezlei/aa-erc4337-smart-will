@@ -155,13 +155,12 @@ contract WillModule {
     }
 
     /**
-     * @notice Allows a beneficiary to claim their inheritance. This action creates a new Safe
-     * for the beneficiary and transfers their inheritance from the owner's Safe.
+     * @notice Allows a beneficiary to claim their inheritance. 
      * @param _ownerSafeAddress The address of the will owner's Safe account.
      * @param _beneficiarySecret A unique off-chain secret (e.g., "charmander@gmail.com").
-     * @param _newSafeOwner The address that will own the newly created Safe for the beneficiary.
+     * @param _newBeneficiarySafe The address of the new Safe for the beneficiary.
      */
-    function claimInheritance(address _ownerSafeAddress, string calldata _beneficiarySecret, address _newSafeOwner) external {
+    function claimInheritance(address _ownerSafeAddress, string calldata _beneficiarySecret, address _newBeneficiarySafe) external {
         Will storage ownerWill = willData[_ownerSafeAddress];
         // --- 1. The Checks ---
         if (ownerWill.timeout == 0) {
@@ -179,47 +178,16 @@ contract WillModule {
             revert NothingToClaim();
         }
 
-        // --- 2. New Safe Creation for Beneficiary ---
-        address safeSingleton = 0x29fcB43b46531BcA003ddC8FCB67FFE91900C762; // Arb Sepolia
-        address safeFactory = 0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67;   // Arb Sepolia
-
-        address[] memory owners = new address[](1);
-        owners[0] = _newSafeOwner;
-
-        // Initializes the new Safe, setting `_newSafeOwner` as the owner.
-        bytes memory setupData = abi.encodeWithSignature(
-            // The function signature as a string literal
-            "setup(address[],uint256,address,bytes,address,address,uint256,address)",
-
-            // Argument 1: The owners array
-            _newSafeOwner,
-
-            // Argument 2: Threshold of 1 since there's a single owner
-            1,
-
-            // Arguments 3-8: The optional parameters, set to zero/empty
-            address(0),
-            "",
-            address(0),
-            address(0),
-            0,
-            address(0)
-            );
-
-        // Calls the factory to create the new Safe for the beneficiary and returns 
-        // the address of the newly created Safe. 
-        address newBeneficiarySafe = ISafeProxyFactory(safeFactory).createProxy(safeSingleton, setupData);
-
-        // --- 3. The Payout ---
+        // --- 2. The Payout ---
         // Commands the owner's Safe to send the inheritance to the new Safe.
         bool success = ISafe(payable(_ownerSafeAddress)).execTransactionFromModule(
-            newBeneficiarySafe, 
+            _newBeneficiarySafe, 
             inheritanceAmount, 
-            "", 
+            bytes(""), 
             Enum.Operation.Call);
         require(success, "WillModule: Payout from owner's Safe failed");
         
-        // --- 4. Admin ---
+        // --- 3. Admin ---
         delete ownerWill.inheritances[beneficiaryId];
         for (uint256 i = 0; i < ownerWill.beneficiaryList.length; i++) {
             if (ownerWill.beneficiaryList[i] == beneficiaryId) {
@@ -228,6 +196,6 @@ contract WillModule {
                 break;
             }
         }
-        emit InheritanceClaimed(_ownerSafeAddress, beneficiaryId, newBeneficiarySafe, inheritanceAmount);
+        emit InheritanceClaimed(_ownerSafeAddress, beneficiaryId, _newBeneficiarySafe, inheritanceAmount);
     }
 }
