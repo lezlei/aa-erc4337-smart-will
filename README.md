@@ -4,6 +4,8 @@ This repository is the third and final project of my [Web3 Arbitrum 14-Day Bootc
 
 The goal is a "Smart Will" where owners can set up their inheritance within a Gnosis Safe, and beneficiaries can claim their assets through a simple "magic link"—all without needing to own crypto or pay for gas, thanks to passkey-based smart accounts and a gas-sponsoring relayer.
 
+GIF of console log of working script: ![Smart Will Simulation](./assets/simulation.gif)
+
 ---
 ## The Journey: From Concept to a Brutally Debugged dApp
 
