@@ -1,0 +1,50 @@
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry
+    ports: [ "8545:8545" ]
+    entrypoint: [ "anvil", "--host", "0.0.0.0", "--block-time", "0.1", "--hardfork", "cancun"]
+    healthcheck:
+      test: ["CMD-SHELL", "cast rpc web3_clientVersion | grep -c anvil > /dev/null "]
+      start_interval: 250ms
+      start_period: 10s
+      interval: 30s
+      timeout: 5s
+      retries: 50
+ 
+  contract-deployer:
+    image: ghcr.io/pimlicolabs/mock-contract-deployer:main
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+    depends_on:
+      anvil:
+        condition: service_healthy
+ 
+  mock-paymaster:
+    image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    ports: [ "3000:3000" ]
+    environment:
+      - ALTO_RPC=http://alto:4337
+      - ANVIL_RPC=http://anvil:8545
+      - ENTRYPOINT=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+    depends_on:
+      anvil:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
+ 
+  alto:
+    image: ghcr.io/pimlicolabs/alto:latest
+    ports: [ "4337:4337" ]
+    entrypoint: ["node", "src/lib/cli/alto.js", "run", "--config", "/app/alto-config.json"]
+    depends_on:
+      anvil:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
+    volumes:
+      - ./alto-config.json:/app/alto-config.json
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4337/ || exit 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
